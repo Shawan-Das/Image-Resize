@@ -15,19 +15,19 @@ export const Footer = () => {
           </div>
           <div className="flex gap-4">
             <a
-              href="#"
+              href="https://github.com/Shawan-Das"
               className="hover:text-white transition-colors p-2 hover:bg-gray-700 rounded-lg"
               aria-label="GitHub"
             >
               <Github className="w-5 h-5" />
             </a>
-            <a
+            {/* <a
               href="https://github.com/Shawan-Das"
               className="hover:text-white transition-colors p-2 hover:bg-gray-700 rounded-lg"
               aria-label="Twitter"
             >
-              {/* <Twitter className="w-5 h-5" /> */}
-            </a>
+              <Twitter className="w-5 h-5" />
+            </a> */}
           </div>
         </div>
       </div>
