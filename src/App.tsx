@@ -76,10 +76,10 @@ function App() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 animate-fade-in">
             <h2 className="text-4xl font-bold text-gray-800 mb-3">
-              Transform Your Images Instantly
+              Process Your Images Instantly
             </h2>
             <p className="text-gray-600 text-lg">
-              Remove backgrounds, resize, and compress with ease
+              Resize and compress with ease
             </p>
           </div>
 
@@ -273,7 +273,7 @@ function App() {
           </div>
 
           <div id="features" className="mt-20 grid md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            {/* <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <div className="bg-cyan-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
                 <Scissors className="w-6 h-6 text-cyan-600" />
               </div>
@@ -283,7 +283,7 @@ function App() {
               <p className="text-gray-600 text-sm">
                 Automatically remove white backgrounds from your images with a single click.
               </p>
-            </div>
+            </div> */}
 
             <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
