@@ -31,3 +31,91 @@
 .animate-slide-up {
   animation: slide-up 0.4s ease-out;
 }
+
+/* Dark theme: follow the user's OS preference and provide sensible overrides
+   for commonly used Tailwind utility classes in the app. Using
+   prefers-color-scheme keeps this zero-config for users who want the app to
+   match their system theme. We use !important on a few rules to reliably
+   override Tailwind utility classes applied in JSX. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-1: #071023; /* page gradient start */
+    --bg-2: #07142a; /* page gradient end */
+    --card: #0b1220; /* panels / cards */
+    --muted: #9aa6b3; /* muted text */
+    --text: #e6eef8; /* primary text */
+    --muted-2: #94a3b8;
+    --accent-cyan-50: rgba(6, 60, 70, 0.06);
+    --accent-cyan-100: rgba(6, 60, 70, 0.10);
+    --accent-blue-100: rgba(10, 40, 90, 0.06);
+    --accent-green-100: rgba(6, 50, 30, 0.06);
+  }
+
+  /* Page background and base text */
+  body,
+  .min-h-screen {
+    background: linear-gradient(135deg, var(--bg-1), var(--bg-2)) !important;
+    color: var(--text) !important;
+  }
+
+  /* Cards / panels */
+  .bg-white {
+    background-color: var(--card) !important;
+  }
+  .bg-gray-50 {
+    background-color: #071226 !important;
+  }
+
+  /* Headings / primary text */
+  .text-gray-800,
+  .text-gray-900 {
+    color: var(--text) !important;
+  }
+
+  /* Secondary / muted text */
+  .text-gray-700 {
+    color: #cbd5e1 !important;
+  }
+  .text-gray-600,
+  .text-gray-500 {
+    color: var(--muted) !important;
+  }
+  .text-gray-400 {
+    color: #9aa6b3 !important;
+  }
+  .text-gray-300 {
+    color: #94a3b8 !important;
+  }
+
+  /* Utility backgrounds used for small UI bits */
+  .bg-cyan-50 {
+    background-color: var(--accent-cyan-50) !important;
+  }
+  .bg-cyan-100 {
+    background-color: var(--accent-cyan-100) !important;
+  }
+  .bg-blue-100 {
+    background-color: var(--accent-blue-100) !important;
+  }
+  .bg-green-100 {
+    background-color: var(--accent-green-100) !important;
+  }
+
+  /* Borders / inputs */
+  .border-gray-300,
+  .border-gray-200 {
+    border-color: rgba(148, 163, 184, 0.12) !important;
+  }
+
+  /* Hover states that rely on subtle background changes */
+  .hover\:bg-cyan-50:hover,
+  .hover\:bg-cyan-100:hover {
+    background-color: rgba(6, 60, 70, 0.08) !important;
+  }
+
+  /* Footer/link colors */
+  .hover\:text-cyan-100:hover,
+  .hover\:text-white:hover {
+    color: #d9f1ff !important;
+  }
+}
