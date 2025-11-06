@@ -13,14 +13,47 @@ export const removeBackground = async (file: File): Promise<string> => {
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
 
+        const cornerSamples = [
+          { x: 0, y: 0 },
+          { x: canvas.width - 1, y: 0 },
+          { x: 0, y: canvas.height - 1 },
+          { x: canvas.width - 1, y: canvas.height - 1 },
+        ];
+
+        const bgColors: Array<{ r: number; g: number; b: number }> = [];
+        cornerSamples.forEach(({ x, y }) => {
+          const idx = (y * canvas.width + x) * 4;
+          bgColors.push({
+            r: data[idx],
+            g: data[idx + 1],
+            b: data[idx + 2],
+          });
+        });
+
+        const avgBgColor = {
+          r: bgColors.reduce((sum, c) => sum + c.r, 0) / bgColors.length,
+          g: bgColors.reduce((sum, c) => sum + c.g, 0) / bgColors.length,
+          b: bgColors.reduce((sum, c) => sum + c.b, 0) / bgColors.length,
+        };
+
+        const threshold = 50;
+
         for (let i = 0; i < data.length; i += 4) {
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
 
-          const brightness = (r + g + b) / 3;
-          if (brightness > 240) {
+          const distance = Math.sqrt(
+            Math.pow(r - avgBgColor.r, 2) +
+              Math.pow(g - avgBgColor.g, 2) +
+              Math.pow(b - avgBgColor.b, 2)
+          );
+
+          if (distance < threshold) {
             data[i + 3] = 0;
+          } else if (distance < threshold * 2) {
+            const alpha = ((distance - threshold) / threshold) * 255;
+            data[i + 3] = Math.min(255, alpha);
           }
         }
 

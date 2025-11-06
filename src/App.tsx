@@ -11,14 +11,37 @@ import {
 
 type ProcessType = 'none' | 'remove-bg' | 'resize' | 'compress';
 
+type ResizePreset = {
+  name: string;
+  width: number;
+  height: number;
+  category: string;
+};
+
+const RESIZE_PRESETS: ResizePreset[] = [
+  { name: 'Instagram Square', width: 1080, height: 1080, category: 'Social Media' },
+  { name: 'Instagram Portrait', width: 1080, height: 1350, category: 'Social Media' },
+  { name: 'Facebook Cover', width: 820, height: 312, category: 'Social Media' },
+  { name: 'Twitter Post', width: 1200, height: 675, category: 'Social Media' },
+  { name: 'YouTube Thumbnail', width: 1280, height: 720, category: 'Social Media' },
+  { name: 'HD (720p)', width: 1280, height: 720, category: 'Standard' },
+  { name: 'Full HD (1080p)', width: 1920, height: 1080, category: 'Standard' },
+  { name: '4K UHD', width: 3840, height: 2160, category: 'Standard' },
+  { name: 'Profile Picture', width: 400, height: 400, category: 'Web' },
+  { name: 'Banner Small', width: 728, height: 90, category: 'Web' },
+  { name: 'Banner Large', width: 970, height: 250, category: 'Web' },
+];
+
 function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [processedUrl, setProcessedUrl] = useState<string>('');
   const [processType, setProcessType] = useState<ProcessType>('none');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [resizeWidth, setResizeWidth] = useState<number>(800);
-  const [resizeHeight, setResizeHeight] = useState<number>(600);
+  const [resizeWidth, setResizeWidth] = useState<number>(1080);
+  const [resizeHeight, setResizeHeight] = useState<number>(1080);
+  const [useCustomSize, setUseCustomSize] = useState<boolean>(false);
+  const [selectedPreset, setSelectedPreset] = useState<string>('Instagram Square');
   const [quality, setQuality] = useState<number>(80);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,6 +57,13 @@ function App() {
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handlePresetSelect = (preset: ResizePreset) => {
+    setSelectedPreset(preset.name);
+    setResizeWidth(preset.width);
+    setResizeHeight(preset.height);
+    setUseCustomSize(false);
   };
 
   const handleProcess = async () => {
@@ -79,7 +109,7 @@ function App() {
               Process Your Images Instantly
             </h2>
             <p className="text-gray-600 text-lg">
-              Resize and compress with ease
+              Remove backgrounds, resize to preset sizes, and compress with ease
             </p>
           </div>
 
@@ -157,33 +187,79 @@ function App() {
                     </label>
 
                     {processType === 'resize' && (
-                      <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg animate-slide-up">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Width (px)
-                          </label>
-                          <input
-                            type="number"
-                            value={resizeWidth}
-                            onChange={(e) =>
-                              setResizeWidth(parseInt(e.target.value) || 800)
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                          />
+                      <div className="space-y-4 p-4 bg-gray-50 rounded-lg animate-slide-up">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-medium text-gray-700">Size Options</span>
+                          <button
+                            onClick={() => setUseCustomSize(!useCustomSize)}
+                            className="text-xs text-cyan-600 hover:text-cyan-700 font-medium"
+                          >
+                            {useCustomSize ? 'Use Presets' : 'Custom Size'}
+                          </button>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Height (px)
-                          </label>
-                          <input
-                            type="number"
-                            value={resizeHeight}
-                            onChange={(e) =>
-                              setResizeHeight(parseInt(e.target.value) || 600)
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                          />
-                        </div>
+
+                        {!useCustomSize ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
+                              {RESIZE_PRESETS.map((preset) => (
+                                <button
+                                  key={preset.name}
+                                  onClick={() => handlePresetSelect(preset)}
+                                  className={`p-3 rounded-lg border-2 text-left transition-all duration-200 ${
+                                    selectedPreset === preset.name
+                                      ? 'border-cyan-500 bg-cyan-50'
+                                      : 'border-gray-200 hover:border-cyan-300 bg-white'
+                                  }`}
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <div>
+                                      <div className="font-medium text-sm text-gray-800">
+                                        {preset.name}
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        {preset.width} × {preset.height}
+                                      </div>
+                                    </div>
+                                    <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
+                                      {preset.category}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Width (px)
+                              </label>
+                              <input
+                                type="number"
+                                value={resizeWidth}
+                                onChange={(e) => {
+                                  setResizeWidth(parseInt(e.target.value) || 1080);
+                                  setSelectedPreset('');
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Height (px)
+                              </label>
+                              <input
+                                type="number"
+                                value={resizeHeight}
+                                onChange={(e) => {
+                                  setResizeHeight(parseInt(e.target.value) || 1080);
+                                  setSelectedPreset('');
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -273,7 +349,7 @@ function App() {
           </div>
 
           <div id="features" className="mt-20 grid md:grid-cols-3 gap-8">
-            {/* <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <div className="bg-cyan-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
                 <Scissors className="w-6 h-6 text-cyan-600" />
               </div>
@@ -281,9 +357,9 @@ function App() {
                 Background Removal
               </h4>
               <p className="text-gray-600 text-sm">
-                Automatically remove white backgrounds from your images with a single click.
+                Automatically remove backgrounds from your images with advanced detection.
               </p>
-            </div> */}
+            </div>
 
             <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
