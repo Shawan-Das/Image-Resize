@@ -10,7 +10,7 @@ export const Footer = () => {
               Made with <Heart className="w-4 h-4 text-red-500 fill-red-500" /> for image enthusiasts
             </p> */}
             <p className="text-sm text-gray-400 mt-1">
-              © 2024 Shawan Das. All processing happens locally in your browser.
+              © 2024 <a href="https://shawan-das-portfolio.vercel.app">Shawan Das</a>. All processing happens locally in your browser.
             </p>
           </div>
           <div className="flex gap-4">

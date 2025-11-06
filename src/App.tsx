@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, Download, Scissors, Maximize2, Minimize2, Sparkles } from 'lucide-react';
+import { Upload, Download, Maximize2, Minimize2, Sparkles } from 'lucide-react';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import {
@@ -23,13 +23,13 @@ const RESIZE_PRESETS: ResizePreset[] = [
   { name: 'Instagram Portrait', width: 1080, height: 1350, category: 'Social Media' },
   { name: 'Facebook Cover', width: 820, height: 312, category: 'Social Media' },
   { name: 'Twitter Post', width: 1200, height: 675, category: 'Social Media' },
-  { name: 'YouTube Thumbnail', width: 1280, height: 720, category: 'Social Media' },
-  { name: 'HD (720p)', width: 1280, height: 720, category: 'Standard' },
+  // { name: 'YouTube Thumbnail', width: 1280, height: 720, category: 'Social Media' },
+  // { name: 'HD (720p)', width: 1280, height: 720, category: 'Standard' },
   { name: 'Full HD (1080p)', width: 1920, height: 1080, category: 'Standard' },
-  { name: '4K UHD', width: 3840, height: 2160, category: 'Standard' },
-  { name: 'Profile Picture', width: 400, height: 400, category: 'Web' },
-  { name: 'Banner Small', width: 728, height: 90, category: 'Web' },
-  { name: 'Banner Large', width: 970, height: 250, category: 'Web' },
+  // { name: '4K UHD', width: 3840, height: 2160, category: 'Standard' },
+  // { name: 'Profile Picture', width: 400, height: 400, category: 'Web' },
+  // { name: 'Banner Small', width: 728, height: 90, category: 'Web' },
+  // { name: 'Banner Large', width: 970, height: 250, category: 'Web' },
 ];
 
 function App() {
@@ -42,6 +42,11 @@ function App() {
   const [resizeHeight, setResizeHeight] = useState<number>(1080);
   const [useCustomSize, setUseCustomSize] = useState<boolean>(false);
   const [selectedPreset, setSelectedPreset] = useState<string>('Instagram Square');
+  const [originalWidth, setOriginalWidth] = useState<number | null>(null);
+  const [originalHeight, setOriginalHeight] = useState<number | null>(null);
+  const [customMode, setCustomMode] = useState<'pixel' | 'percent'>('pixel');
+  const [customWidthInput, setCustomWidthInput] = useState<string>('1080');
+  const [customHeightInput, setCustomHeightInput] = useState<string>('1080');
   const [quality, setQuality] = useState<number>(80);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,7 +58,21 @@ function App() {
       setProcessType('none');
       const reader = new FileReader();
       reader.onload = (e) => {
-        setPreviewUrl(e.target?.result as string);
+        const src = e.target?.result as string;
+        setPreviewUrl(src);
+        // measure original image dimensions
+        const img = new Image();
+        img.onload = () => {
+          setOriginalWidth(img.width);
+          setOriginalHeight(img.height);
+          // initialize custom inputs to image size
+          setCustomWidthInput(String(img.width));
+          setCustomHeightInput(String(img.height));
+          // if user hasn't chosen a preset yet, default resize size to original
+          setResizeWidth(img.width);
+          setResizeHeight(img.height);
+        };
+        img.src = src;
       };
       reader.readAsDataURL(file);
     }
@@ -66,6 +85,19 @@ function App() {
     setUseCustomSize(false);
   };
 
+  const getBadgeClasses = (category: string) => {
+    switch (category) {
+      case 'Social Media':
+        return 'text-cyan-800 bg-cyan-100';
+      case 'Standard':
+        return 'text-blue-800 bg-blue-100';
+      case 'Web':
+        return 'text-emerald-800 bg-emerald-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
+    }
+  };
+
   const handleProcess = async () => {
     if (!selectedFile || processType === 'none') return;
 
@@ -76,9 +108,19 @@ function App() {
         case 'remove-bg':
           result = await removeBackground(selectedFile);
           break;
-        case 'resize':
-          result = await resizeImage(selectedFile, resizeWidth, resizeHeight);
+        case 'resize': {
+          // compute final width/height (support percent custom mode)
+          let finalW = resizeWidth;
+          let finalH = resizeHeight;
+          if (useCustomSize && customMode === 'percent' && originalWidth && originalHeight) {
+            const pw = parseInt(customWidthInput || '0') || 0;
+            const ph = parseInt(customHeightInput || '0') || 0;
+            finalW = Math.max(1, Math.round(originalWidth * (pw / 100)));
+            finalH = Math.max(1, Math.round(originalHeight * (ph / 100)));
+          }
+          result = await resizeImage(selectedFile, finalW, finalH);
           break;
+        }
         case 'compress':
           result = await compressImage(selectedFile, quality);
           break;
@@ -198,8 +240,115 @@ function App() {
                           </button>
                         </div>
 
+                        {/* Show original and estimated sizes */}
+                        <div className="mb-3 text-sm text-gray-600">
+                          <div>
+                            <strong>Original:</strong>{' '}
+                            {originalWidth && originalHeight
+                              ? `${originalWidth} × ${originalHeight} px`
+                              : '—'}
+                          </div>
+                          <div>
+                            <strong>Estimated resized:</strong>{' '}
+                            {/* compute estimated value from current inputs */}
+                            {customMode === 'percent' && originalWidth && originalHeight
+                              ? `${Math.round(originalWidth * (parseInt(customWidthInput || '0') / 100))} × ${Math.round(originalHeight * (parseInt(customHeightInput || '0') / 100))} px`
+                              : `${resizeWidth} × ${resizeHeight} px`}
+                          </div>
+                        </div>
+
                         {!useCustomSize ? (
                           <div className="space-y-3">
+                            <div className="flex gap-2 flex-wrap mb-2">
+                              <button
+                                onClick={() => {
+                                  if (!originalWidth || !originalHeight) return;
+                                  const w = Math.round(originalWidth * 0.25);
+                                  const h = Math.round(originalHeight * 0.25);
+                                  setResizeWidth(w);
+                                  setResizeHeight(h);
+                                  setCustomWidthInput(String(25));
+                                  setCustomHeightInput(String(25));
+                                  setCustomMode('percent');
+                                  setSelectedPreset('');
+                                }}
+                                className="px-3 py-1 rounded-lg border border-gray-200 bg-white hover:bg-cyan-50 text-sm"
+                              >
+                                25% of original
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (!originalWidth || !originalHeight) return;
+                                  const w = Math.round(originalWidth * 0.5);
+                                  const h = Math.round(originalHeight * 0.5);
+                                  setResizeWidth(w);
+                                  setResizeHeight(h);
+                                  setCustomWidthInput(String(50));
+                                  setCustomHeightInput(String(50));
+                                  setCustomMode('percent');
+                                  setSelectedPreset('');
+                                }}
+                                className="px-3 py-1 rounded-lg border border-gray-200 bg-white hover:bg-cyan-50 text-sm"
+                              >
+                                50% of original
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (!originalWidth || !originalHeight) return;
+                                  const w = Math.round(originalWidth * 0.75);
+                                  const h = Math.round(originalHeight * 0.75);
+                                  setResizeWidth(w);
+                                  setResizeHeight(h);
+                                  setCustomWidthInput(String(75));
+                                  setCustomHeightInput(String(75));
+                                  setCustomMode('percent');
+                                  setSelectedPreset('');
+                                }}
+                                className="px-3 py-1 rounded-lg border border-gray-200 bg-white hover:bg-cyan-50 text-sm"
+                              >
+                                75% of original
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setResizeWidth(1280);
+                                  setResizeHeight(1920);
+                                  setCustomWidthInput('1280');
+                                  setCustomHeightInput('1920');
+                                  setCustomMode('pixel');
+                                  setSelectedPreset('');
+                                }}
+                                className="px-3 py-1 rounded-lg border border-gray-200 bg-white hover:bg-cyan-50 text-sm"
+                              >
+                                1280 × 1920
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setResizeWidth(1024);
+                                  setResizeHeight(1536);
+                                  setCustomWidthInput('1024');
+                                  setCustomHeightInput('1536');
+                                  setCustomMode('pixel');
+                                  setSelectedPreset('');
+                                }}
+                                className="px-3 py-1 rounded-lg border border-gray-200 bg-white hover:bg-cyan-50 text-sm"
+                              >
+                                1024 × 1536
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setResizeWidth(800);
+                                  setResizeHeight(1200);
+                                  setCustomWidthInput('800');
+                                  setCustomHeightInput('1200');
+                                  setCustomMode('pixel');
+                                  setSelectedPreset('');
+                                }}
+                                className="px-3 py-1 rounded-lg border border-gray-200 bg-white hover:bg-cyan-50 text-sm"
+                              >
+                                800 × 1200
+                              </button>
+                            </div>
+
                             <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
                               {RESIZE_PRESETS.map((preset) => (
                                 <button
@@ -220,7 +369,7 @@ function App() {
                                         {preset.width} × {preset.height}
                                       </div>
                                     </div>
-                                    <span className="text-xs px-2 py-1 bg-gray-100 rounded text-gray-600">
+                                    <span className={`text-xs px-2 py-1 rounded ${getBadgeClasses(preset.category)}`}>
                                       {preset.category}
                                     </span>
                                   </div>
@@ -229,34 +378,69 @@ function App() {
                             </div>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Width (px)
-                              </label>
-                              <input
-                                type="number"
-                                value={resizeWidth}
-                                onChange={(e) => {
-                                  setResizeWidth(parseInt(e.target.value) || 1080);
-                                  setSelectedPreset('');
-                                }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                              />
+                          <div>
+                            <div className="grid grid-cols-2 gap-4 mb-3">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Width
+                                </label>
+                                <input
+                                  type="text"
+                                  value={customWidthInput}
+                                  onChange={(e) => {
+                                    setCustomWidthInput(e.target.value);
+                                    const val = parseInt(e.target.value);
+                                    if (isNaN(val) || val <= 0) return;
+                                    if (customMode === 'pixel') {
+                                      setResizeWidth(val);
+                                    } else if (originalWidth) {
+                                      setResizeWidth(Math.round(originalWidth * (val / 100)));
+                                    }
+                                    setSelectedPreset('');
+                                  }}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  Height
+                                </label>
+                                <input
+                                  type="text"
+                                  value={customHeightInput}
+                                  onChange={(e) => {
+                                    setCustomHeightInput(e.target.value);
+                                    const val = parseInt(e.target.value);
+                                    if (isNaN(val) || val <= 0) return;
+                                    if (customMode === 'pixel') {
+                                      setResizeHeight(val);
+                                    } else if (originalHeight) {
+                                      setResizeHeight(Math.round(originalHeight * (val / 100)));
+                                    }
+                                    setSelectedPreset('');
+                                  }}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                              </div>
                             </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Height (px)
+
+                            <div className="flex items-center gap-4">
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  checked={customMode === 'pixel'}
+                                  onChange={() => setCustomMode('pixel')}
+                                />
+                                <span className="text-sm">Pixels (px)</span>
                               </label>
-                              <input
-                                type="number"
-                                value={resizeHeight}
-                                onChange={(e) => {
-                                  setResizeHeight(parseInt(e.target.value) || 1080);
-                                  setSelectedPreset('');
-                                }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                              />
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  checked={customMode === 'percent'}
+                                  onChange={() => setCustomMode('percent')}
+                                />
+                                <span className="text-sm">Percent of original (%)</span>
+                              </label>
                             </div>
                           </div>
                         )}
