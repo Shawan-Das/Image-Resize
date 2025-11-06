@@ -109,7 +109,7 @@ function App() {
               Process Your Images Instantly
             </h2>
             <p className="text-gray-600 text-lg">
-              Remove backgrounds, resize to preset sizes, and compress with ease
+              Resize to preset sizes, and compress with ease
             </p>
           </div>
 
@@ -150,7 +150,7 @@ function App() {
                         Choose Operation
                       </span>
                       <div className="grid grid-cols-3 gap-3">
-                        <button
+                        {/* <button
                           onClick={() => setProcessType('remove-bg')}
                           className={`p-4 rounded-lg border-2 transition-all duration-200 flex flex-col items-center gap-2 ${
                             processType === 'remove-bg'
@@ -160,7 +160,7 @@ function App() {
                         >
                           <Scissors className="w-6 h-6" />
                           <span className="text-xs font-medium">Remove BG</span>
-                        </button>
+                        </button> */}
                         <button
                           onClick={() => setProcessType('resize')}
                           className={`p-4 rounded-lg border-2 transition-all duration-200 flex flex-col items-center gap-2 ${
@@ -349,7 +349,7 @@ function App() {
           </div>
 
           <div id="features" className="mt-20 grid md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            {/* <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <div className="bg-cyan-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
                 <Scissors className="w-6 h-6 text-cyan-600" />
               </div>
@@ -359,7 +359,7 @@ function App() {
               <p className="text-gray-600 text-sm">
                 Automatically remove backgrounds from your images with advanced detection.
               </p>
-            </div>
+            </div> */}
 
             <div className="bg-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
