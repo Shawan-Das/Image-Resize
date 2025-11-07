@@ -7,6 +7,7 @@ import {
   resizeImage,
   compressImage,
   downloadImage,
+  exportImage,
 } from './utils/imageProcessor';
 
 type ProcessType = 'none' | 'remove-bg' | 'resize' | 'compress';
@@ -48,11 +49,23 @@ function App() {
   const [customWidthInput, setCustomWidthInput] = useState<string>('1080');
   const [customHeightInput, setCustomHeightInput] = useState<string>('1080');
   const [quality, setQuality] = useState<number>(80);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [outputFormat, setOutputFormat] = useState<'png' | 'jpeg' | 'webp' | 'io'>('png');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > MAX_FILE_SIZE) {
+        setErrorMessage('File is too large — maximum allowed size is 10 MB.');
+        // clear any previously selected file
+        setSelectedFile(null);
+        setPreviewUrl('');
+        setProcessedUrl('');
+        return;
+      }
+      setErrorMessage('');
       setSelectedFile(file);
       setProcessedUrl('');
       setProcessType('none');
@@ -134,10 +147,21 @@ function App() {
   };
 
   const handleDownload = () => {
-    if (processedUrl) {
-      const extension = processType === 'compress' ? 'jpg' : 'png';
-      downloadImage(processedUrl, `processed-image.${extension}`);
-    }
+    (async () => {
+      const src = processedUrl || previewUrl;
+      if (!src) return;
+
+      try {
+        // convert to chosen format (treat .io as PNG alias). Quality applies to jpeg/webp.
+        const exportFormat = outputFormat === 'io' ? 'png' : outputFormat;
+        const converted = await exportImage(src, exportFormat as 'png' | 'jpeg' | 'webp', quality);
+        const base = selectedFile ? selectedFile.name.replace(/\.[^/.]+$/, '') : 'processed-image';
+        const ext = outputFormat === 'jpeg' ? 'jpg' : outputFormat;
+        downloadImage(converted, `${base}.${ext}`);
+      } catch (err) {
+        console.error('Download/convert error:', err);
+      }
+    })();
   };
 
   return (
@@ -170,7 +194,7 @@ function App() {
                 <p className="text-gray-700 font-medium mb-2">
                   Click to upload an image
                 </p>
-                <p className="text-sm text-gray-500">PNG, JPG up to 10MB</p>
+                <p className="text-sm text-gray-500">Any image type (PNG, JPG, GIF, WEBP, ICO, etc.) — up to 10 MB</p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -179,6 +203,9 @@ function App() {
                   className="hidden"
                 />
               </div>
+              {errorMessage && (
+                <div className="text-sm text-red-600 mb-4">{errorMessage}</div>
+              )}
 
               {selectedFile && (
                 <div className="space-y-6 animate-slide-up">
@@ -501,32 +528,37 @@ function App() {
                 </div>
               )}
 
-              {previewUrl && !processedUrl && (
+              {(previewUrl || processedUrl) && (
                 <div className="space-y-4">
-                  <p className="text-sm font-medium text-gray-600">Original:</p>
+                  <p className="text-sm font-medium text-gray-600">{processedUrl ? 'Processed:' : 'Original:'}</p>
                   <img
-                    src={previewUrl}
-                    alt="Preview"
+                    src={processedUrl || previewUrl}
+                    alt={processedUrl ? 'Processed' : 'Preview'}
                     className="w-full h-auto rounded-lg shadow-md animate-fade-in"
                   />
-                </div>
-              )}
 
-              {processedUrl && (
-                <div className="space-y-4 animate-fade-in">
-                  <p className="text-sm font-medium text-gray-600">Processed:</p>
-                  <img
-                    src={processedUrl}
-                    alt="Processed"
-                    className="w-full h-auto rounded-lg shadow-md"
-                  />
-                  <button
-                    onClick={handleDownload}
-                    className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
-                  >
-                    <Download className="w-5 h-5" />
-                    Download Image
-                  </button>
+                  <div className="mt-3 grid grid-cols-1 gap-3">
+                    <label className="flex items-center gap-3">
+                      <span className="text-sm font-medium">Download as</span>
+                      <select
+                        value={outputFormat}
+                        onChange={(e) => setOutputFormat(e.target.value as any)}
+                        className="ml-2 px-3 py-2 border border-gray-200 rounded-lg bg-white"
+                      >
+                        <option value="png">PNG</option>
+                        <option value="jpeg">JPEG</option>
+                        <option value="webp">WEBP</option>
+                      </select>
+                    </label>
+
+                    <button
+                      onClick={handleDownload}
+                      className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                    >
+                      <Download className="w-5 h-5" />
+                      Download Image
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
