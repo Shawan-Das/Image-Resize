@@ -113,6 +113,43 @@ export const compressImage = async (
   });
 };
 
+/**
+ * Convert an existing data URL (or image data URL) into another image format.
+ * Supported formats: 'png', 'jpeg', 'webp'. Quality (0-100) applies to jpeg/webp.
+ */
+export const exportImage = async (
+  dataUrl: string,
+  format: 'png' | 'jpeg' | 'webp',
+  quality?: number
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d')!;
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        let mime = 'image/png';
+        if (format === 'jpeg') mime = 'image/jpeg';
+        if (format === 'webp') mime = 'image/webp';
+
+        const q = typeof quality === 'number' ? Math.max(0.01, Math.min(1, quality / 100)) : undefined;
+
+        // toDataURL ignores quality for PNG
+        const out = q && mime !== 'image/png' ? canvas.toDataURL(mime, q) : canvas.toDataURL(mime);
+        resolve(out);
+      } catch (err) {
+        reject(err);
+      }
+    };
+  img.onerror = () => reject(new Error('Failed to load image for export'));
+    img.src = dataUrl;
+  });
+};
+
 export const downloadImage = (dataUrl: string, filename: string) => {
   const link = document.createElement('a');
   link.href = dataUrl;
