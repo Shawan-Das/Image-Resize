@@ -8,6 +8,9 @@ import {
   compressImage,
   downloadImage,
   exportImage,
+  formatFileSize,
+  getDataUrlSize,
+  findQualityForTargetSize,
 } from './utils/imageProcessor';
 
 type ProcessType = 'none' | 'remove-bg' | 'resize' | 'compress';
@@ -39,6 +42,8 @@ function App() {
   const [processedUrl, setProcessedUrl] = useState<string>('');
   const [processType, setProcessType] = useState<ProcessType>('none');
   const [isProcessing, setIsProcessing] = useState(false);
+  // removed estimatedSize state - we no longer display live estimates
+  const [targetSizeKB, setTargetSizeKB] = useState<number | null>(null);
   const [resizeWidth, setResizeWidth] = useState<number>(1080);
   const [resizeHeight, setResizeHeight] = useState<number>(1080);
   const [useCustomSize, setUseCustomSize] = useState<boolean>(false);
@@ -48,7 +53,7 @@ function App() {
   const [customMode, setCustomMode] = useState<'pixel' | 'percent'>('pixel');
   const [customWidthInput, setCustomWidthInput] = useState<string>('1080');
   const [customHeightInput, setCustomHeightInput] = useState<string>('1080');
-  const [quality, setQuality] = useState<number>(80);
+  // user-entered target size in KB (we will find quality when processing)
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [outputFormat, setOutputFormat] = useState<'png' | 'jpeg' | 'webp' | 'io'>('png');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -134,9 +139,21 @@ function App() {
           result = await resizeImage(selectedFile, finalW, finalH);
           break;
         }
-        case 'compress':
-          result = await compressImage(selectedFile, quality);
+        case 'compress': {
+          if (targetSizeKB && previewUrl) {
+            const targetBytes = targetSizeKB * 1024;
+            try {
+              const res = await findQualityForTargetSize(previewUrl, targetBytes);
+              result = await exportImage(previewUrl, 'jpeg', res.quality);
+            } catch (err) {
+              console.error('Error finding quality for target size', err);
+              result = previewUrl ? await exportImage(previewUrl, 'jpeg', 80) : await compressImage(selectedFile, 80);
+            }
+          } else {
+            result = previewUrl ? await exportImage(previewUrl, 'jpeg', 80) : await compressImage(selectedFile, 80);
+          }
           break;
+        }
       }
       setProcessedUrl(result);
     } catch (error) {
@@ -152,9 +169,22 @@ function App() {
       if (!src) return;
 
       try {
-        // convert to chosen format (treat .io as PNG alias). Quality applies to jpeg/webp.
+
         const exportFormat = outputFormat === 'io' ? 'png' : outputFormat;
-        const converted = await exportImage(src, exportFormat as 'png' | 'jpeg' | 'webp', quality);
+        let converted: string;
+
+        if (processedUrl) {
+          converted = processedUrl;
+        } else if (processType === 'compress' && targetSizeKB && previewUrl) {
+          const targetBytes = targetSizeKB * 1024;
+          const res = await findQualityForTargetSize(previewUrl, targetBytes);
+          // export with the found quality (note: size-targeting uses jpeg internally)
+          converted = await exportImage(previewUrl, 'jpeg', res.quality);
+        } else {
+          // no processing result — export at a default quality
+          converted = await exportImage(src, exportFormat as 'png' | 'jpeg' | 'webp', 80);
+        }
+
         const base = selectedFile ? selectedFile.name.replace(/\.[^/.]+$/, '') : 'processed-image';
         const ext = outputFormat === 'jpeg' ? 'jpg' : outputFormat;
         downloadImage(converted, `${base}.${ext}`);
@@ -475,20 +505,35 @@ function App() {
                     )}
 
                     {processType === 'compress' && (
-                      <div className="p-4 bg-gray-50 rounded-lg animate-slide-up">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Quality: {quality}%
-                        </label>
-                        <input
-                          type="range"
-                          min="10"
-                          max="100"
-                          value={quality}
-                          onChange={(e) =>
-                            setQuality(parseInt(e.target.value))
-                          }
-                          className="w-full h-2 bg-cyan-200 rounded-lg appearance-none cursor-pointer"
-                        />
+                      <div className="p-4 bg-gray-50 rounded-lg animate-slide-up space-y-4">
+                        <div className="text-sm space-y-1">
+                          <p className="font-medium text-gray-700">Original size: {formatFileSize(getDataUrlSize(previewUrl))}</p>
+                        </div>
+
+                        <div className="pt-2 border-t border-gray-200">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Target size (KB)
+                          </label>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="number"
+                              min="1"
+                              placeholder="e.g. 300"
+                              value={targetSizeKB || ''}
+                              onChange={(e) => {
+                                const kb = parseInt(e.target.value);
+                                if (!isNaN(kb) && kb > 0) {
+                                  setTargetSizeKB(kb);
+                                } else {
+                                  setTargetSizeKB(null);
+                                }
+                              }}
+                              className="w-24 px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                            />
+                            <span className="text-sm text-gray-600 py-2">KB</span>
+                            <div className="text-xs text-gray-500 ml-3">We will attempt to match this size when you press Process</div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
