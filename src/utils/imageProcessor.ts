@@ -113,10 +113,6 @@ export const compressImage = async (
   });
 };
 
-/**
- * Convert an existing data URL (or image data URL) into another image format.
- * Supported formats: 'png', 'jpeg', 'webp'. Quality (0-100) applies to jpeg/webp.
- */
 export const exportImage = async (
   dataUrl: string,
   format: 'png' | 'jpeg' | 'webp',
@@ -138,7 +134,6 @@ export const exportImage = async (
 
         const q = typeof quality === 'number' ? Math.max(0.01, Math.min(1, quality / 100)) : undefined;
 
-        // toDataURL ignores quality for PNG
         const out = q && mime !== 'image/png' ? canvas.toDataURL(mime, q) : canvas.toDataURL(mime);
         resolve(out);
       } catch (err) {
@@ -157,4 +152,132 @@ export const downloadImage = (dataUrl: string, filename: string) => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+};
+
+
+export const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+};
+
+
+export const getDataUrlSize = (dataUrl: string): number => {
+  const arr = dataUrl.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || '';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  const blob = new Blob([u8arr], { type: mime });
+  return blob.size;
+};
+
+export const estimateCompressedSize = async (
+  imageDataUrl: string,
+  quality: number
+): Promise<number> => {
+  const compressed = await compressImage(
+    dataUrlToFile(imageDataUrl, 'temp.jpg'),
+    quality
+  );
+  return getDataUrlSize(compressed);
+};
+
+
+export interface QualityResult {
+  quality: number;
+  actualSize: number;
+  isExact: boolean;
+}
+
+
+export const findQualityForTargetSize = async (
+  imageDataUrl: string,
+  targetSize: number
+): Promise<QualityResult> => {
+  // First check if target size is achievable
+  const minSize = await estimateCompressedSize(imageDataUrl, 1);
+  const maxSize = await estimateCompressedSize(imageDataUrl, 100);
+  
+  if (targetSize >= maxSize) {
+    return { quality: 100, actualSize: maxSize, isExact: false };
+  }
+  if (targetSize <= minSize) {
+    return { quality: 1, actualSize: minSize, isExact: false };
+  }
+
+  let minQ = 1;
+  let maxQ = 100;
+  let bestQuality = 50;
+  let bestSize = 0;
+  let bestSizeDiff = Infinity;
+  const tolerance = targetSize * 0.005; // 0.5% tolerance - much stricter
+
+  // Try up to 20 iterations to get very precise
+  for (let i = 0; i < 20 && maxQ - minQ > 1; i++) {
+    const quality = Math.floor((minQ + maxQ) / 2);
+    const size = await estimateCompressedSize(imageDataUrl, quality);
+    const diff = Math.abs(size - targetSize);
+
+    // Track best result
+    if (diff < bestSizeDiff) {
+      bestSizeDiff = diff;
+      bestQuality = quality;
+      bestSize = size;
+    }
+
+    // Stop if we're very close
+    if (diff <= tolerance) {
+      return { 
+        quality: quality,
+        actualSize: size,
+        isExact: true
+      };
+    }
+
+    if (size > targetSize) {
+      maxQ = quality;
+    } else {
+      minQ = quality;
+    }
+  }
+
+  // If we couldn't get exact target, step down quality from best result
+  if (bestSize > targetSize) {
+    for (let q = bestQuality - 1; q >= 1; q--) {
+      const size = await estimateCompressedSize(imageDataUrl, q);
+      if (size <= targetSize) {
+        return { 
+          quality: q,
+          actualSize: size,
+          isExact: Math.abs(size - targetSize) <= tolerance
+        };
+      }
+    }
+  }
+
+  // Return best approximation found
+  return { 
+    quality: bestQuality,
+    actualSize: bestSize,
+    isExact: Math.abs(bestSize - targetSize) <= tolerance
+  };
+};
+
+
+const dataUrlToFile = (dataUrl: string, filename: string): File => {
+  const arr = dataUrl.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || '';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
+  }
+  return new File([u8arr], filename, { type: mime });
 };
